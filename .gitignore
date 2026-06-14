@@ -1,0 +1,42 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+config.local.py
+
+# Runtime data and personal conversations
+chat_contexts.json
+user_timers.json
+recurring_reminders.json
+Memory_Temp/
+CoreMemory/
+downloads/
+forum_data/
+wxautox文件缓存/
+
+# Personal prompts and generated backups
+prompts/*
+!prompts/example.md
+!prompts/empty.md
+*.bak_*
+
+# Local legacy/source snapshots
+BACKUP.py
+监听1.py
+监听2.py
+
+# Python caches and logs
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+
+# Bundled/private dependencies and installers
+libs/
+*.exe
+*.whl
+
+# Editors and OS files
+.DS_Store
+.idea/
+.vscode/
