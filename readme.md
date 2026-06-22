@@ -1,71 +1,269 @@
-# 说明
-- 这是一个智能微信聊天机器人。通过wxautox_wechatbot收发微信消息，调用deepseek、gpt、gemini等大语言模型生成回复消息。
-- 原项目仓库：https://github.com/KouriChat/KouriChat
-- 本项目由iwyxdxl在原项目基础上修改创建。
-- 本机器人致力于实现更加拟人化聊天效果，支持多种功能。
-- 本程序暂不支持微信4.0及以上版本，请使用3.9版本
-- 欢迎加入QQ交流群
-- 一群 617379532（已满） 二群 964162330（已满） 三群 970883587（已满）
-- 四群 948397427（已满） 五群 1035170563（已满）六群 1027558584（已满）
-- 七群 994615172（已满） 八群 160487098（已满） 九群 198351721 （已满）
-- 十群 1055392303
+# WeChatbot_withjm
 
-# 效果展示
-<img src="Demo_Image/1.png" alt="示例图片1" width="300px">
-<img src="Demo_Image/2.png" alt="示例图片2" width="300px">
-<img src="Demo_Image/3.png" alt="示例图片2" width="300px">
-<img src="Demo_Image/4.png" alt="示例图片3" width="900px">
-<img src="Demo_Image/5.png" alt="示例图片4" width="900px">
+A Windows-based WeChat AI automation bot extended from
+[WeChatBot_WXAUTO_SE](https://github.com/iwyxdxl/WeChatBot_WXAUTO_SE).
+It improves compatibility with newer OpenAI GPT APIs, supports hot-reloadable
+prompts, and integrates a JM download service based on
+[JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python).
 
-# 版本号
-- v3.24
+This project is intended for personal learning, LLM application experiments,
+WeChat automation research, and portfolio demonstration.
 
-# 目前支持的功能
-1. 智能自动回复，支持多用户/群聊同时聊天，并可为每个用户或群聊分配独立的提示词（Prompt）
-2. 图片和表情包内容识别
-3. 情绪识别并回复表情包
-4. 获取消息中的包含的链接的网页内容
-5. AI时间感知（年-月-日 星期 时-分-秒）
-6. 主动发送消息及合并处理多条消息或表情包。
-7. 前端WebUI支持：启动程序、修改配置文件、生成和管理Prompt
-8. 记忆功能：调用AI总结聊天记录保存到Prompt或者独立核心记忆文件
-9. 让AI设置定时任务功能，例如"15分钟后提醒我出门"或"每天早上八点叫我起床"，并支持通过语音通话提醒
-10. 支持联网搜索
-11. 接收语音消息（需在微信设置中开启"聊天中的语音消息自动转文字"功能）
-12. 自动更新程序
-13. 特色功能 - 角色论坛
-14. 指令功能
+## Project Overview
 
-# 使用前准备
-1. 请先安装python、pip，python版本应大于3.8
-2. 申请大模型API,推荐WeAPIs https://vg.v1api.cc/register?aff=Rf3h
+The upstream project provides local WeChat automation, a Web UI, private and
+group chat replies, prompt-based personas, memory, reminders, and LLM-powered
+responses. This repository extends it in three main directions:
 
-# 快速上手
-1. 登录电脑微信，确保在后台运行
-2. 运行 Run.bat 启动程序，等待自动安装依赖文件
-3. 在打开的网页中修改配置文件，选择您的API服务提供商、模型，并填入您的API KEY
-4. 在页面左侧点击 'Prompt管理' 进入提示词管理页面
-5. 在提示词管理页面您可以参考自带的提示词样式编写或者使用提示词生成器生成您需要的提示词
-6. 回到配置编辑器页面，填入微信昵称或群聊名称，并选择对应提示词
-7. 修改完配置后点击页面右上角'Start Bot'启动程序
-8. 如果想要自定义表情包请将表情包(.gif .png .jpg .jpeg)文件放入emojis文件夹中对应的情绪文件夹内（可以自己添加情绪种类）
+1. Improved compatibility with newer OpenAI GPT APIs, including GPT-5 models.
+2. Hot-reloadable prompts for faster persona and prompt iteration.
+3. A custom `jm_download_service.py` module for message-triggered PDF tasks.
 
-# 联系我
-1. 邮箱 iwyxdxl@gmail.com
-2. QQ 2025128651
+The goal is to preserve the original bot architecture while turning it into a
+more flexible AI assistant and local task-automation entry point.
 
-# 声明
-- 本项目基于 [KouriChat](https://github.com/KouriChat/KouriChat) 修改(原My-Dream-Moments项目)，遵循 **GNU GPL-3.0 或更高版本** 许可证，原项目版权归属：umaru (2025)。
-- **修改说明**：本项目在2025年期间对原始代码进行了大量修改和重构，包括但不限于：
-  - 完全重写了用户界面和配置系统
-  - 大幅扩展了机器人功能和AI集成
-  - 重构了消息处理和自动化逻辑
-  - 添加了大量新特性如情绪识别、定时任务、联网搜索等
-- 由于修改范围广泛且深入，无法精确标注每处修改的具体日期，但所有修改均在上述时间段内完成。
-- 本修改版本保持与原项目相同的GPL-3.0许可证，确保用户享有相同的自由软件权利。
+## Main Features
 
-## 许可证和依赖说明
-- **主许可证**：GNU GPL-3.0 或更高版本
-- **依赖库**：项目使用私有授权的微信自动化库作为可选增强功能，并提供开源备选方案
-- **合规性**：详细的许可证合规性说明请参阅 [DEPENDENCIES.txt](DEPENDENCIES.txt)
-- **用户权利**：无论使用哪种依赖库，用户都享有完整的GPL-3.0自由软件权利
+### WeChat AI Auto Reply
+
+- Monitors PC WeChat messages automatically.
+- Supports private chats and group chats.
+- Supports group mention and keyword triggers.
+- Assigns different prompts and personas to different users or groups.
+- Preserves multi-turn conversation and memory behavior from the upstream project.
+
+### Improved OpenAI API Compatibility
+
+- Supports OpenAI and OpenAI-compatible API endpoints.
+- Handles GPT-5 token parameter differences.
+- Improves model-switching stability.
+- Keeps the integration ready for newer compatible model providers.
+
+### Hot-Reloadable Prompts
+
+- Updates prompt rules without fully restarting the bot.
+- Speeds up persona testing and prompt engineering.
+- Supports long-running assistant scenarios.
+- Provides a foundation for multi-persona prompt management.
+
+### JM Download Service
+
+The custom `jm_download_service.py` module uses
+[JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
+to download an album, generate a PDF, and return it through WeChat.
+
+Trigger formats:
+
+```text
+Group chat: @BotName jm123456
+Private chat: jm123456
+```
+
+The command is matched strictly. Extra text does not trigger a download.
+
+> This feature is for personal learning and local experimentation. Users are
+> responsible for complying with local laws, age requirements, platform rules,
+> and copyright restrictions.
+
+### Web UI Configuration
+
+- Local browser-based configuration interface.
+- User and group management.
+- Prompt and persona management.
+- Runtime logs and bot controls.
+
+### Additional Message Features
+
+- Text, image, emoji, voice transcription, and link handling.
+- Emotional-style replies and optional emoji sending.
+- Message merging and simulated reply delays.
+- Reminders, memory summaries, and scheduled tasks.
+
+## Changes from the Upstream Project
+
+| Module | Upstream | This repository |
+| --- | --- | --- |
+| WeChat automation | Supported | Preserved |
+| Private/group replies | Supported | Preserved and stabilized |
+| Web UI | Supported | Preserved |
+| OpenAI API calls | Partial newer-model support | Improved GPT-5 compatibility |
+| Prompt updates | Usually require restart | Hot-reload support |
+| External task services | Not included | JM download/PDF service |
+| Project direction | AI chatbot | AI chat and task automation |
+
+## Tech Stack
+
+- Python
+- Windows UI automation
+- PC WeChat
+- OpenAI-compatible APIs
+- Flask Web UI
+- Prompt and persona management
+- External Python service integration
+
+## Project Structure
+
+```text
+WeChatbot_withjm/
+|-- bot.py                     # Main bot runtime
+|-- config.py                  # Main configuration
+|-- config_editor.py           # Web UI configuration editor
+|-- jm_download_service.py     # JM download and PDF service
+|-- Run.bat                    # Windows startup script
+|-- requirements.txt           # Python dependencies
+|-- .env.example               # Environment variable names
+|-- prompts/                   # Prompt/persona examples
+|-- emojis/                    # Emoji resources
+|-- templates/                 # Web UI templates
+|-- Demo_Image/                # Demo images
+|-- CHANGELOG.md
+|-- DEPENDENCIES.txt
+|-- LICENSE
+`-- README.md
+```
+
+## Requirements
+
+Recommended environment:
+
+- Windows 11
+- Python 3.9-3.12
+- PC WeChat 4.1.2 matching the bundled automation library
+- `pip`
+- A valid OpenAI or OpenAI-compatible API key
+
+The bundled `wxautox4_wechatbot` wheel is not committed to this repository.
+You must provide a compatible authorized wheel or replace it with a compatible
+automation implementation.
+
+## Quick Start
+
+### 1. Clone the repository
+
+```bat
+git clone https://github.com/Tony-Su1/WeChatbot_withjm.git
+cd WeChatbot_withjm
+```
+
+### 2. Install dependencies
+
+```bat
+python -m pip install -r requirements.txt
+```
+
+The original Windows package can also use:
+
+```bat
+Run.bat
+```
+
+### 3. Configure the API key
+
+`config.py` reads the OpenAI API key from the Windows environment:
+
+```bat
+setx OPENAI_API_KEY "your_api_key_here"
+```
+
+Close and reopen the terminal after running `setx`. Do not commit real API
+keys to Git.
+
+Optional Web UI password:
+
+```bat
+setx WECHATBOT_LOGIN_PASSWORD "your_password"
+```
+
+### 4. Configure users and prompts
+
+Edit `LISTEN_LIST` in `config.py`:
+
+```python
+LISTEN_LIST = [
+    ['Friend nickname', 'example'],
+    ['Group name', 'example'],
+]
+```
+
+Create your own prompt from `prompts/example.md`. Personal prompts, memories,
+chat contexts, downloads, and API keys are ignored by Git.
+
+### 5. Start the bot
+
+1. Open and sign in to PC WeChat.
+2. Keep WeChat running.
+3. Run `Run.bat` or `python config_editor.py`.
+4. Open the local Web UI, review the configuration, and start the bot.
+
+## Configuration Checklist
+
+- API key is configured and valid.
+- Model name matches the selected provider.
+- Base URL matches the provider.
+- WeChat nicknames and group names are exact.
+- Every target is mapped to an existing prompt file.
+- PC WeChat is signed in and using a compatible version.
+- JM downloads comply with applicable laws and platform rules.
+
+## Use Cases
+
+- Personal AI assistant experiments.
+- WeChat auto-reply testing.
+- OpenAI API integration practice.
+- Prompt engineering and persona design.
+- Local automation workflow research.
+- External Python service integration.
+- Resume and portfolio demonstration.
+
+## Future Improvements
+
+- Cleaner modular plugin architecture.
+- RAG-based local knowledge retrieval.
+- Broader model-provider compatibility.
+- Persistent rotating log files.
+- Safer configuration management.
+- Unit and integration tests.
+- Better task queue, cooldown, and timeout controls.
+
+## Disclaimer
+
+This project is provided for technical research, personal learning, and local
+experimentation. Users must comply with:
+
+- Applicable laws and regulations.
+- WeChat platform rules.
+- API provider terms of service.
+- Copyright and content-usage requirements.
+- Licenses and restrictions of all third-party projects.
+
+Do not use this project for spam, harassment, illegal automation, public
+platform abuse, unauthorized access, or copyright infringement. The developer
+is not responsible for misuse, account restrictions, third-party API output,
+or other consequences caused by users.
+
+## Credits
+
+- [iwyxdxl/WeChatBot_WXAUTO_SE](https://github.com/iwyxdxl/WeChatBot_WXAUTO_SE)
+- [KouriChat/KouriChat](https://github.com/KouriChat/KouriChat)
+- [hect0x7/JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
+
+Thanks to the original developers and open-source contributors.
+
+## License
+
+This project follows the license requirements of the upstream project and its
+dependencies. See:
+
+- [LICENSE](LICENSE)
+- [LICENSE_COMPLIANCE.md](LICENSE_COMPLIANCE.md)
+- [DEPENDENCIES.txt](DEPENDENCIES.txt)
+
+Review the license requirements of WeChatBot_WXAUTO_SE, KouriChat, and
+JMComic-Crawler-Python before redistribution.
+
+## Resume Summary
+
+> Modified and extended an open-source Windows WeChat automation bot by
+> improving OpenAI GPT API compatibility, adding hot-reloadable prompt
+> management, and integrating a custom JM download/PDF service based on an
+> external Python crawler library.
