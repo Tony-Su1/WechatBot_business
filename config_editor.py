@@ -3589,18 +3589,20 @@ def get_default_config():
         "ENABLE_SENSITIVE_CONTENT_CLEARING": True,
         "SAVE_MEMORY_TO_SEPARATE_FILE": True,
         "CORE_MEMORY_DIR": 'CoreMemory',
+        "ENABLE_CUSTOMER_MEMORY": True,
+        "ENABLE_CUSTOMER_DB": True,
+        "CUSTOMER_DB_PATH": 'data/customer_assistant.db',
+        "CUSTOMER_MEMORY_DIR": 'CustomerMemory',
+        "CUSTOMER_MEMORY_PRIVATE_ONLY": True,
+        "CUSTOMER_MEMORY_AUTO_UPDATE": True,
+        "CUSTOMER_MEMORY_MAX_CHARS": 3000,
         "ENABLE_TEXT_COMMANDS": True,
         "ENABLE_FORUM_CUSTOM_MODEL": False,
         "FORUM_BASE_URL": 'https://vg.v1api.cc/v1',
         "FORUM_MODEL": '',
         "FORUM_API_KEY": '',
         "FORUM_TEMPERATURE": 1.0,
-        "FORUM_MAX_TOKEN": 1200,
-        "ENABLE_JM_DOWNLOAD": True,
-        "JM_DOWNLOAD_DIR": 'downloads/jm',
-        "JM_DOWNLOAD_MAX_CONCURRENT": 1,
-        "JM_DOWNLOAD_MAX_PDF_MB": 100,
-        "JM_DOWNLOAD_DELETE_AFTER_SEND": True
+        "FORUM_MAX_TOKEN": 1200
     }
 
 def validate_config():

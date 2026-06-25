@@ -1,26 +1,27 @@
-# WeChatbot_withjm
+# WeChatbot Customer Assistant
 
 A Windows-based WeChat AI automation bot extended from
 [WeChatBot_WXAUTO_SE](https://github.com/iwyxdxl/WeChatBot_WXAUTO_SE).
 It improves compatibility with newer OpenAI GPT APIs, supports hot-reloadable
-prompts, and integrates a JM download service based on
-[JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python).
+prompts, and adds private-chat customer profile memory for client follow-up
+workflows.
 
 This project is intended for personal learning, LLM application experiments,
-WeChat automation research, and portfolio demonstration.
+WeChat automation research, and private-domain customer assistant experiments.
 
 ## Project Overview
 
 The upstream project provides local WeChat automation, a Web UI, private and
 group chat replies, prompt-based personas, memory, reminders, and LLM-powered
-responses. This repository extends it in three main directions:
+responses. This version focuses the bot toward private-chat customer work:
 
 1. Improved compatibility with newer OpenAI GPT APIs, including GPT-5 models.
 2. Hot-reloadable prompts for faster persona and prompt iteration.
-3. A custom `jm_download_service.py` module for message-triggered PDF tasks.
+3. Private-chat customer profile memory for key dates, preferences, sales stage,
+   follow-up progress, and human handoff hints.
 
-The goal is to preserve the original bot architecture while turning it into a
-more flexible AI assistant and local task-automation entry point.
+The goal is to preserve the original bot architecture while making it more
+useful as a lightweight customer follow-up assistant.
 
 ## Main Features
 
@@ -31,6 +32,18 @@ more flexible AI assistant and local task-automation entry point.
 - Supports group mention and keyword triggers.
 - Assigns different prompts and personas to different users or groups.
 - Preserves multi-turn conversation and memory behavior from the upstream project.
+
+### Private Customer Profile Memory
+
+- Keeps base role prompts in `prompts/`.
+- Stores structured customer data in `data/customer_assistant.db`.
+- Writes each private-chat customer's prompt-ready summary cache to
+  `CustomerMemory/`.
+- Injects the customer's profile into the system prompt before each reply.
+- After each normal private-chat reply, extracts structured customer updates
+  into SQLite and refreshes the Markdown cache.
+- Tracks key dates, preferences, personality notes, current sales stage,
+  follow-up progress, and human handoff reasons.
 
 ### Improved OpenAI API Compatibility
 
@@ -46,25 +59,6 @@ more flexible AI assistant and local task-automation entry point.
 - Supports long-running assistant scenarios.
 - Provides a foundation for multi-persona prompt management.
 
-### JM Download Service
-
-The custom `jm_download_service.py` module uses
-[JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
-to download an album, generate a PDF, and return it through WeChat.
-
-Trigger formats:
-
-```text
-Group chat: @BotName jm123456
-Private chat: jm123456
-```
-
-The command is matched strictly. Extra text does not trigger a download.
-
-> This feature is for personal learning and local experimentation. Users are
-> responsible for complying with local laws, age requirements, platform rules,
-> and copyright restrictions.
-
 ### Web UI Configuration
 
 - Local browser-based configuration interface.
@@ -79,40 +73,19 @@ The command is matched strictly. Extra text does not trigger a download.
 - Message merging and simulated reply delays.
 - Reminders, memory summaries, and scheduled tasks.
 
-## Changes from the Upstream Project
-
-| Module | Upstream | This repository |
-| --- | --- | --- |
-| WeChat automation | Supported | Preserved |
-| Private/group replies | Supported | Preserved and stabilized |
-| Web UI | Supported | Preserved |
-| OpenAI API calls | Partial newer-model support | Improved GPT-5 compatibility |
-| Prompt updates | Usually require restart | Hot-reload support |
-| External task services | Not included | JM download/PDF service |
-| Project direction | AI chatbot | AI chat and task automation |
-
-## Tech Stack
-
-- Python
-- Windows UI automation
-- PC WeChat
-- OpenAI-compatible APIs
-- Flask Web UI
-- Prompt and persona management
-- External Python service integration
-
 ## Project Structure
 
 ```text
-WeChatbot_withjm/
+WeChatbot Customer Assistant/
 |-- bot.py                     # Main bot runtime
 |-- config.py                  # Main configuration
 |-- config_editor.py           # Web UI configuration editor
-|-- jm_download_service.py     # JM download and PDF service
 |-- Run.bat                    # Windows startup script
 |-- requirements.txt           # Python dependencies
 |-- .env.example               # Environment variable names
 |-- prompts/                   # Prompt/persona examples
+|-- CustomerMemory/            # Prompt-ready profile cache, ignored by Git
+|-- data/                      # SQLite customer DB, ignored by Git
 |-- emojis/                    # Emoji resources
 |-- templates/                 # Web UI templates
 |-- Demo_Image/                # Demo images
@@ -138,14 +111,7 @@ automation implementation.
 
 ## Quick Start
 
-### 1. Clone the repository
-
-```bat
-git clone https://github.com/Tony-Su1/WeChatbot_withjm.git
-cd WeChatbot_withjm
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bat
 python -m pip install -r requirements.txt
@@ -157,7 +123,7 @@ The original Windows package can also use:
 Run.bat
 ```
 
-### 3. Configure the API key
+### 2. Configure the API key
 
 `config.py` reads the OpenAI API key from the Windows environment:
 
@@ -174,21 +140,21 @@ Optional Web UI password:
 setx WECHATBOT_LOGIN_PASSWORD "your_password"
 ```
 
-### 4. Configure users and prompts
+### 3. Configure users and prompts
 
 Edit `LISTEN_LIST` in `config.py`:
 
 ```python
 LISTEN_LIST = [
     ['Friend nickname', 'example'],
-    ['Group name', 'example'],
 ]
 ```
 
-Create your own prompt from `prompts/example.md`. Personal prompts, memories,
-chat contexts, downloads, and API keys are ignored by Git.
+Create your own prompt from `prompts/example.md`. Personal prompts, customer
+databases, customer profile caches, memories, chat contexts, downloads, and API
+keys are ignored by Git.
 
-### 5. Start the bot
+### 4. Start the bot
 
 1. Open and sign in to PC WeChat.
 2. Keep WeChat running.
@@ -200,25 +166,25 @@ chat contexts, downloads, and API keys are ignored by Git.
 - API key is configured and valid.
 - Model name matches the selected provider.
 - Base URL matches the provider.
-- WeChat nicknames and group names are exact.
+- WeChat nicknames are exact.
 - Every target is mapped to an existing prompt file.
 - PC WeChat is signed in and using a compatible version.
-- JM downloads comply with applicable laws and platform rules.
+- Customer profile memory is enabled only where you intend the bot to retain
+  customer follow-up information.
 
 ## Use Cases
 
-- Personal AI assistant experiments.
+- Private-domain customer follow-up experiments.
 - WeChat auto-reply testing.
-- OpenAI API integration practice.
 - Prompt engineering and persona design.
+- OpenAI API integration practice.
 - Local automation workflow research.
-- External Python service integration.
 - Resume and portfolio demonstration.
 
 ## Future Improvements
 
 - Cleaner modular plugin architecture.
-- RAG-based local knowledge retrieval.
+- RAG-based insurance product and compliance knowledge retrieval.
 - Broader model-provider compatibility.
 - Persistent rotating log files.
 - Safer configuration management.
@@ -235,17 +201,17 @@ experimentation. Users must comply with:
 - API provider terms of service.
 - Copyright and content-usage requirements.
 - Licenses and restrictions of all third-party projects.
+- Privacy, consent, and data-protection obligations for customer information.
 
 Do not use this project for spam, harassment, illegal automation, public
-platform abuse, unauthorized access, or copyright infringement. The developer
-is not responsible for misuse, account restrictions, third-party API output,
-or other consequences caused by users.
+platform abuse, unauthorized access, or unauthorized personal-data processing.
+The developer is not responsible for misuse, account restrictions, third-party
+API output, or other consequences caused by users.
 
 ## Credits
 
 - [iwyxdxl/WeChatBot_WXAUTO_SE](https://github.com/iwyxdxl/WeChatBot_WXAUTO_SE)
 - [KouriChat/KouriChat](https://github.com/KouriChat/KouriChat)
-- [hect0x7/JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python)
 
 Thanks to the original developers and open-source contributors.
 
@@ -258,12 +224,12 @@ dependencies. See:
 - [LICENSE_COMPLIANCE.md](LICENSE_COMPLIANCE.md)
 - [DEPENDENCIES.txt](DEPENDENCIES.txt)
 
-Review the license requirements of WeChatBot_WXAUTO_SE, KouriChat, and
-JMComic-Crawler-Python before redistribution.
+Review the license requirements of WeChatBot_WXAUTO_SE and KouriChat before
+redistribution.
 
 ## Resume Summary
 
 > Modified and extended an open-source Windows WeChat automation bot by
 > improving OpenAI GPT API compatibility, adding hot-reloadable prompt
-> management, and integrating a custom JM download/PDF service based on an
-> external Python crawler library.
+> management, and adding private-chat customer profile memory for client
+> follow-up workflows.

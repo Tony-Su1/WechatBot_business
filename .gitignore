@@ -10,6 +10,11 @@ user_timers.json
 recurring_reminders.json
 Memory_Temp/
 CoreMemory/
+CustomerMemory/
+data/
+*.db
+*.sqlite
+*.sqlite3
 downloads/
 forum_data/
 wxautox文件缓存/

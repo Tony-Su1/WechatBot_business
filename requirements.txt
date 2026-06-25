@@ -13,5 +13,3 @@ filelock
 requests
 beautifulsoup4
 lxml
-jmcomic==2.6.20
-img2pdf
