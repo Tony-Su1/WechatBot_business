@@ -17,6 +17,7 @@ data/
 *.sqlite3
 downloads/
 forum_data/
+KnowledgeBaseUploads/
 wxautox文件缓存/
 
 # Personal prompts and generated backups
@@ -24,6 +25,7 @@ prompts/*
 !prompts/example.md
 !prompts/empty.md
 *.bak_*
+.pre_pull_backup_*/
 
 # Local legacy/source snapshots
 BACKUP.py

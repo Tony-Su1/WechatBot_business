@@ -5,7 +5,7 @@ import os
 # Modified based on the KouriChat project
 # Copyright of this modification: Copyright (C) 2025, iwyxdxl
 # Licensed under GNU GPL-3.0 or higher, see the LICENSE file for details.
-# 
+#
 # This file is part of WeChatBot, which includes modifications to the KouriChat project.
 # The original KouriChat project's copyright and license information are preserved in the LICENSE file.
 # For any further details regarding the license, please refer to the LICENSE file.
@@ -13,10 +13,10 @@ import os
 
 # 用户列表(请配置要和bot说话的账号的微信昵称！)
 # 例如：LISTEN_LIST = [['微信名1', '角色1'],['微信名2', '角色2']]
-LISTEN_LIST = [['微信昵称或群聊名称', 'example']]
+LISTEN_LIST = [['Nickname', 'example']]
 
 # DeepSeek API 配置
-DEEPSEEK_API_KEY = os.getenv('OPENAI_API_KEY', '')
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 # 硅基流动API注册地址，免费15元额度 https://cloud.siliconflow.cn/
 DEEPSEEK_BASE_URL = 'https://api.openai.com/v1'
 # 硅基流动API的模型
@@ -36,7 +36,7 @@ TEMPERATURE = 1.0
 
 # Moonshot AI配置（用于图片和表情包识别）
 # API申请https://platform.moonshot.cn/
-MOONSHOT_API_KEY = os.getenv('OPENAI_API_KEY', '')
+MOONSHOT_API_KEY = os.getenv('MOONSHOT_API_KEY', '')
 MOONSHOT_BASE_URL = 'https://api.openai.com/v1'
 MOONSHOT_MODEL = 'gpt-4.1'
 MOONSHOT_TEMPERATURE = 1.0
@@ -69,6 +69,9 @@ AVERAGE_TYPING_SPEED = 0.2
 RANDOM_TYPING_SPEED_MIN = 0.05
 RANDOM_TYPING_SPEED_MAX = 0.1
 SEPARATE_ROW_SYMBOLS = True
+ENABLE_REPLY_LENGTH_LIMIT = False
+REPLY_MAX_SEGMENTS = 3
+REPLY_MAX_TOTAL_CHARS = 30
 
 # 记忆功能
 # 采用综合评分公式：0.6*重要度 - 0.4*(存在时间小时数)
@@ -93,6 +96,16 @@ CUSTOMER_MEMORY_DIR = 'CustomerMemory'
 CUSTOMER_MEMORY_PRIVATE_ONLY = True
 CUSTOMER_MEMORY_AUTO_UPDATE = True
 CUSTOMER_MEMORY_MAX_CHARS = 3000
+
+# 知识库
+# 用于存放保险产品、保单条款等可信资料；机器人回答保险专业问题时优先引用这里。
+ENABLE_KNOWLEDGE_BASE = True
+KNOWLEDGE_DB_PATH = 'data/knowledge_base.db'
+KNOWLEDGE_UPLOAD_DIR = 'KnowledgeBaseUploads'
+KNOWLEDGE_AUTO_SEARCH = True
+KNOWLEDGE_TOP_K = 5
+KNOWLEDGE_MAX_CONTEXT_CHARS = 2500
+KNOWLEDGE_MIN_SCORE = 8
 
 # 是否接收全部群聊消息
 ACCEPT_ALL_GROUP_CHAT_MESSAGES = True
@@ -125,7 +138,7 @@ USE_VOICE_CALL_FOR_REMINDERS = False
 ENABLE_ONLINE_API = True
 ONLINE_BASE_URL = 'https://api.openai.com/v1'
 ONLINE_MODEL = 'gpt-4.1'
-ONLINE_API_KEY = os.getenv('OPENAI_API_KEY', '')
+ONLINE_API_KEY = os.getenv('ONLINE_API_KEY', '')
 ONLINE_API_TEMPERATURE = 1.0
 ONLINE_API_MAX_TOKEN = 2000
 SEARCH_DETECTION_PROMPT = '是否需要查询今天的天气、最新的新闻事件、特定网站的内容、股票价格、特定人物的最新动态等'
@@ -159,7 +172,7 @@ REMOVE_PARENTHESES = False
 ENABLE_ASSISTANT_MODEL = False
 ASSISTANT_BASE_URL = 'https://vg.v1api.cc/v1'
 ASSISTANT_MODEL = 'gpt-4o-mini'
-ASSISTANT_API_KEY = ''
+ASSISTANT_API_KEY = os.getenv('ASSISTANT_API_KEY', '')
 ASSISTANT_TEMPERATURE = 0.3
 ASSISTANT_MAX_TOKEN = 1000
 USE_ASSISTANT_FOR_MEMORY_SUMMARY = False
@@ -168,13 +181,6 @@ USE_ASSISTANT_FOR_MEMORY_SUMMARY = False
 # 开启后遇到敏感词时自动清除Memory_Temp文件和聊天上下文
 ENABLE_SENSITIVE_CONTENT_CLEARING = True
 
-# 论坛自定义模型配置（可选）
-ENABLE_FORUM_CUSTOM_MODEL = False
-FORUM_BASE_URL = 'https://vg.v1api.cc/v1'
-FORUM_MODEL = 'deepseek-ai/DeepSeek-V3'
-FORUM_API_KEY = ''
-FORUM_TEMPERATURE = 1.0
-FORUM_MAX_TOKEN = 1200
 
 BOT_ADMIN_NICKNAMES = []
 

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库管理</title>
+    <style>
+        body {
+            margin: 0;
+            background: #f6f7f9;
+            color: #1f2933;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+        }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        h2 {
+            margin: 0 0 14px;
+            font-size: 17px;
+        }
+        .nav-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        a.button, button {
+            display: inline-block;
+            border: 0;
+            border-radius: 4px;
+            padding: 9px 13px;
+            background: #0f766e;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        a.button.secondary, button.secondary {
+            background: #3b82f6;
+        }
+        button.danger {
+            background: #b91c1c;
+        }
+        .page {
+            padding: 22px 24px 32px;
+        }
+        .section {
+            margin-bottom: 22px;
+            padding: 18px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #475569;
+            font-size: 13px;
+        }
+        input, select {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 9px 10px;
+            border: 1px solid #cfd6df;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 14px;
+        }
+        .muted {
+            color: #64748b;
+            font-size: 13px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: #ccfbf1;
+            color: #0f766e;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .badge.off {
+            background: #e5e7eb;
+            color: #475569;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+        }
+        th, td {
+            padding: 11px 12px;
+            border-bottom: 1px solid #edf0f3;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+        th {
+            background: #f9fafb;
+            color: #475569;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .actions form {
+            margin: 0;
+        }
+        .search {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .result {
+            padding: 13px 0;
+            border-bottom: 1px solid #edf0f3;
+        }
+        .result:last-child {
+            border-bottom: 0;
+        }
+        .snippet {
+            margin-top: 6px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .empty {
+            border: 1px dashed #cfd6df;
+            padding: 22px;
+            color: #64748b;
+            text-align: center;
+            background: #fff;
+        }
+        .stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .stat {
+            padding: 8px 10px;
+            border: 1px solid #d9e2e7;
+            border-radius: 4px;
+            background: #f8fafc;
+            font-size: 13px;
+        }
+        @media (max-width: 900px) {
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .search {
+                flex-direction: column;
+            }
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>知识库管理</h1>
+        <div class="nav-actions">
+            <a class="button secondary" href="{{ url_for('index', skipped='true') }}">返回配置</a>
+        </div>
+    </div>
+
+    <main class="page">
+        <section class="section">
+            <h2>索引状态</h2>
+            <div class="stats">
+                <div class="stat">资料 {{ index_stats.documents }}</div>
+                <div class="stat">片段 {{ index_stats.chunks }}</div>
+                <div class="stat">索引项 {{ index_stats.terms }}</div>
+                <div class="stat">唯一词 {{ index_stats.unique_terms }}</div>
+            </div>
+            <form method="post" action="{{ url_for('rebuild_knowledge_index') }}">
+                <button type="submit">重建索引</button>
+                <span class="muted">上传新资料会自动建索引；旧资料或规则调整后可手动重建。</span>
+            </form>
+        </section>
+
+        <section class="section">
+            <h2>上传资料</h2>
+            <form method="post" action="{{ url_for('upload_knowledge_file') }}" enctype="multipart/form-data">
+                <div class="grid">
+                    <div>
+                        <label>资料文件</label>
+                        <input type="file" name="knowledge_file" accept=".pdf,.docx,.xlsx,.txt,.md" required>
+                    </div>
+                    <div>
+                        <label>知识库分类</label>
+                        <input type="text" name="collection" value="保险知识">
+                    </div>
+                    <div>
+                        <label>标题</label>
+                        <input type="text" name="title" placeholder="不填则使用文件名">
+                    </div>
+                    <div>
+                        <label>产品/险种</label>
+                        <input type="text" name="product_name" placeholder="例如：重疾险、医疗险">
+                    </div>
+                    <div>
+                        <label>版本</label>
+                        <input type="text" name="version" placeholder="例如：2026版">
+                    </div>
+                    <div>
+                        <label>生效日期</label>
+                        <input type="date" name="effective_date">
+                    </div>
+                    <div>
+                        <label>可信级别</label>
+                        <select name="trusted_level">
+                            <option value="正式资料">正式资料</option>
+                            <option value="培训资料">培训资料</option>
+                            <option value="草稿待确认">草稿待确认</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">上传并入库</button>
+                    <span class="muted">支持 PDF、DOCX、XLSX、TXT、MD；扫描版 PDF 暂不做 OCR。</span>
+                </div>
+            </form>
+        </section>
+
+        <section class="section">
+            <h2>检索测试</h2>
+            <form class="search" method="get" action="{{ url_for('knowledge_page') }}">
+                <input type="text" name="q" value="{{ query }}" placeholder="输入保险责任、免责条款、理赔条件等关键词">
+                <button type="submit">搜索</button>
+            </form>
+            {% if query and results %}
+                {% for item in results %}
+                <div class="result">
+                    <div>
+                        <span class="badge">{{ item.collection }}</span>
+                        <strong>{{ item.title }}</strong>
+                        <span class="muted">得分 {{ item.score }}{% if item.page_number %} · 第 {{ item.page_number }} 页{% endif %}</span>
+                    </div>
+                    {% if item.matched_terms %}
+                    <div class="muted">命中词：{{ item.matched_terms }}</div>
+                    {% endif %}
+                    <div class="snippet">{{ item.snippet or item.content[:420] }}{% if not item.snippet and item.content|length > 420 %}...{% endif %}</div>
+                </div>
+                {% endfor %}
+            {% elif query %}
+                <div class="empty">没有检索到匹配片段。</div>
+            {% else %}
+                <div class="muted">上传资料后，可先在这里测试机器人能否搜到相关条款。</div>
+            {% endif %}
+        </section>
+
+        <section class="section">
+            <h2>资料列表</h2>
+            {% if docs %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>分类</th>
+                        <th>产品</th>
+                        <th>版本</th>
+                        <th>片段</th>
+                        <th>索引项</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in docs %}
+                    <tr>
+                        <td>
+                            <strong>{{ doc.title }}</strong>
+                            <div class="muted">{{ doc.source_filename }}</div>
+                        </td>
+                        <td>{{ doc.collection }}</td>
+                        <td>{{ doc.product_name or '-' }}</td>
+                        <td>{{ doc.version or '-' }}</td>
+                        <td>{{ doc.chunk_count }}</td>
+                        <td>{{ doc.index_terms or 0 }}</td>
+                        <td>
+                            {% if doc.enabled %}
+                                <span class="badge">启用</span>
+                            {% else %}
+                                <span class="badge off">停用</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ doc.updated_at }}</td>
+                        <td>
+                            <div class="actions">
+                                <form method="post" action="{{ url_for('toggle_knowledge_document', document_id=doc.id) }}">
+                                    <button class="secondary" type="submit">{{ '停用' if doc.enabled else '启用' }}</button>
+                                </form>
+                                <form method="post" action="{{ url_for('delete_knowledge_document', document_id=doc.id) }}" onsubmit="return confirm('确定删除这份知识库资料吗？');">
+                                    <button class="danger" type="submit">删除</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty">还没有知识库资料。</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

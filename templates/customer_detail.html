@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>客户详情</title>
+    <title>用户资料详情</title>
     <style>
         body {
             margin: 0;
@@ -180,7 +180,7 @@
             <div class="muted">{{ c.wechat_nickname }} · 最近互动：{{ c.last_interaction_at or '-' }}</div>
         </div>
         <div>
-            <a class="button secondary" href="{{ url_for('customers_page') }}">返回客户列表</a>
+            <a class="button secondary" href="{{ url_for('customers_page') }}">返回用户资料</a>
         </div>
     </div>
 
@@ -188,7 +188,7 @@
         <div class="grid">
             <section>
                 <div class="panel">
-                    <h2>客户资料</h2>
+                    <h2>用户资料</h2>
                     <form method="post" action="{{ url_for('update_customer_detail', customer_id=c.id) }}">
                         <div class="form-grid">
                             <div>

@@ -25,6 +25,7 @@ from collections import deque
 import pyautogui
 import shutil
 import re
+import knowledge_base as kb
 from config import *
 # ----------------------------------------------------------------------
 # Compatibility helpers for OpenAI model parameter changes
@@ -194,6 +195,136 @@ def get_dynamic_config(key, default_value=None):
     except Exception as e:
         logger.warning(f"获取动态配置 {key} 失败: {e}")
         return default_value
+
+def _get_int_config(key, default_value):
+    try:
+        value = get_dynamic_config(key, globals().get(key, default_value))
+        return int(value)
+    except Exception:
+        return int(default_value)
+
+def _reply_length_limit_enabled():
+    return bool(get_dynamic_config(
+        'ENABLE_REPLY_LENGTH_LIMIT',
+        globals().get('ENABLE_REPLY_LENGTH_LIMIT', True)
+    ))
+
+def _get_reply_length_limits():
+    max_segments = max(1, _get_int_config('REPLY_MAX_SEGMENTS', 3))
+    max_chars = max(1, _get_int_config('REPLY_MAX_TOTAL_CHARS', 30))
+    return max_segments, max_chars
+
+def build_reply_length_instruction():
+    """生成阶段的回复风格约束，让模型自然少说，而不是事后粗暴截断。"""
+    if not _reply_length_limit_enabled():
+        return ""
+    max_segments, max_chars = _get_reply_length_limits()
+    return f"""
+
+## 回复长度规则
+
+- 像真人微信私聊一样回复，默认少说、自然、口语化。
+- 对方只发一句普通消息时，不要长篇解释，不要一次性讲完整方案。
+- 每个对话轮最多回复 {max_segments} 条消息，所有消息合计尽量不超过 {max_chars} 个中文字符。
+- 如果需要追问信息，优先只问 1 个最关键问题。
+- 只有用户明确要求“详细解释、展开讲、列方案、写文案”时，才可以适度展开。
+- 如果使用反斜线分隔多条消息，分隔后的消息数也不能超过 {max_segments} 条。
+""".strip()
+
+def _knowledge_base_enabled():
+    return bool(get_dynamic_config(
+        'ENABLE_KNOWLEDGE_BASE',
+        globals().get('ENABLE_KNOWLEDGE_BASE', True)
+    ))
+
+def _knowledge_auto_search_enabled():
+    return bool(get_dynamic_config(
+        'KNOWLEDGE_AUTO_SEARCH',
+        globals().get('KNOWLEDGE_AUTO_SEARCH', True)
+    ))
+
+def _get_knowledge_db_path():
+    db_path = str(get_dynamic_config(
+        'KNOWLEDGE_DB_PATH',
+        globals().get('KNOWLEDGE_DB_PATH', 'data/knowledge_base.db')
+    ) or 'data/knowledge_base.db')
+    if not os.path.isabs(db_path):
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), db_path)
+    return db_path
+
+def _get_knowledge_top_k():
+    return max(1, _get_int_config('KNOWLEDGE_TOP_K', 5))
+
+def _get_knowledge_max_context_chars():
+    return max(500, _get_int_config('KNOWLEDGE_MAX_CONTEXT_CHARS', 2500))
+
+def _get_knowledge_min_score():
+    return max(1, _get_int_config('KNOWLEDGE_MIN_SCORE', 8))
+
+def should_use_knowledge_base(message: str) -> bool:
+    """仅对保险/保单相关内容触发知识库，避免闲聊被知识库规则污染。"""
+    if not _knowledge_base_enabled():
+        return False
+    text = str(message or '')
+    keywords = [
+        '保险', '保单', '险种', '投保', '承保', '保费', '保额', '免赔', '等待期',
+        '犹豫期', '责任免除', '免责', '理赔', '赔付', '现金价值', '退保', '续保',
+        '重疾', '轻症', '中症', '医疗险', '寿险', '意外险', '年金', '分红',
+        '万能账户', '被保险人', '受益人', '健康告知', '核保', '条款', '保险责任'
+    ]
+    return any(keyword in text for keyword in keywords)
+
+def search_knowledge_base(query: str, top_k: Optional[int] = None, min_score: Optional[int] = None):
+    if not _knowledge_base_enabled():
+        return []
+    db_path = _get_knowledge_db_path()
+    if not os.path.exists(db_path):
+        logger.info(f"知识库数据库不存在，跳过检索: {db_path}")
+        return []
+    try:
+        return kb.search_knowledge(
+            db_path,
+            query,
+            top_k=top_k or _get_knowledge_top_k(),
+            min_score=min_score if min_score is not None else _get_knowledge_min_score()
+        )
+    except Exception as e:
+        logger.warning(f"知识库检索失败: {e}", exc_info=True)
+        return []
+
+def format_knowledge_context(chunks):
+    max_chars = _get_knowledge_max_context_chars()
+    return kb.format_knowledge_context(chunks, max_chars=max_chars)
+
+def build_knowledge_augmented_prompt(user_message: str, chunks):
+    kb_context = format_knowledge_context(chunks)
+    if kb_context:
+        return f"""
+用户消息：
+{user_message}
+
+以下是知识库检索到的可信资料：
+---
+{kb_context}
+---
+
+请根据角色设定自然回复用户，并严格遵守：
+1. 涉及保险责任、条款、保费、理赔、免责、投保条件等专业事实时，只能依据上面的知识库资料。
+2. 知识库没有明确写到的内容，不要猜测、不要编造；应说明“这点我需要再确认资料”或建议人工确认。
+3. 如果资料之间有冲突或版本不明，提醒需要按具体保单/最新条款核对。
+4. 回复要像微信聊天，不要长篇科普；必要时简短标注资料来源标题。
+""".strip()
+    return f"""
+用户消息：
+{user_message}
+
+这是一条保险/保单相关问题，但当前知识库没有检索到可依据的资料。
+
+请根据角色设定自然回复用户，并严格遵守：
+1. 不要编造保险责任、条款、费率、理赔结论或产品承诺。
+2. 明确表达“我这边资料里暂时没查到，得确认具体条款/保单”。
+3. 回复要简短，像微信聊天；可以追问产品名、保单页、条款截图等关键信息。
+""".strip()
 
 # ---------------- Admin command: /admin hot ----------------
 # 目标：无论是否在对话中，只要收到 /admin hot 指令，就优先执行（不走概率、不进入联网检测、不入队列）
@@ -1771,7 +1902,7 @@ def save_chat_contexts():
             except OSError:
                 pass # 忽略清理错误
 
-def get_deepseek_response(message, user_id, store_context=True, is_summary=False):
+def get_deepseek_response(message, user_id, store_context=True, is_summary=False, context_user_message=None):
     """
     从 DeepSeek API 获取响应，确保正确的上下文处理，并持久化上下文。
 
@@ -1780,6 +1911,7 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
         user_id (str): 用户或系统组件的标识符。
         store_context (bool): 是否将此交互存储到聊天上下文中。
                               对于工具调用（如解析或总结），设置为 False。
+        context_user_message (str): 可选。API 使用增强提示时，聊天历史里保存的用户原话。
     """
     try:
         # 每次调用都重新加载聊天上下文，以应对文件被外部修改的情况
@@ -1795,10 +1927,17 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
             # 1. 获取该用户的系统提示词
             try:
                 user_prompt = get_user_prompt(user_id)
+                reply_length_instruction = build_reply_length_instruction()
+                if reply_length_instruction:
+                    user_prompt = user_prompt.rstrip() + "\n\n" + reply_length_instruction
                 messages_to_send.append({"role": "system", "content": user_prompt})
             except FileNotFoundError as e:
                 logger.error(f"用户 {user_id} 的提示文件错误: {e}，使用默认提示。")
-                messages_to_send.append({"role": "system", "content": "你是一个乐于助人的助手。"})
+                fallback_prompt = "你是一个乐于助人的助手。"
+                reply_length_instruction = build_reply_length_instruction()
+                if reply_length_instruction:
+                    fallback_prompt += "\n\n" + reply_length_instruction
+                messages_to_send.append({"role": "system", "content": fallback_prompt})
 
             # 2. 管理并检索聊天历史记录
             with queue_lock: # 确保对 chat_contexts 的访问是线程安全的
@@ -1820,7 +1959,8 @@ def get_deepseek_response(message, user_id, store_context=True, is_summary=False
 
                 # 4. 在准备 API 调用后更新持久上下文
                 # 将用户消息添加到持久存储中
-                chat_contexts[user_id].append({"role": "user", "content": message})
+                stored_user_message = context_user_message if context_user_message is not None else message
+                chat_contexts[user_id].append({"role": "user", "content": stored_user_message})
                 # 如果需要，裁剪持久存储（在助手回复后会再次裁剪）
                 if len(chat_contexts[user_id]) > context_limit + 1:  # +1 因为刚刚添加了用户消息
                     chat_contexts[user_id] = chat_contexts[user_id][-(context_limit + 1):]
@@ -3020,8 +3160,18 @@ def process_user_messages(user_id):
     online_info = None
 
     try:
+        force_knowledge_answer = should_use_knowledge_base(merged_message)
+        knowledge_chunks = []
+        if _knowledge_base_enabled() and (_knowledge_auto_search_enabled() or force_knowledge_answer):
+            knowledge_chunks = search_knowledge_base(
+                merged_message,
+                top_k=_get_knowledge_top_k(),
+                min_score=_get_knowledge_min_score()
+            )
+        use_knowledge_base = bool(knowledge_chunks) or force_knowledge_answer
+
         # --- 新增：联网搜索逻辑 ---
-        if ENABLE_ONLINE_API:
+        if ENABLE_ONLINE_API and not use_knowledge_base:
             # 1. 检测是否需要联网
             search_content = needs_online_search(merged_message, user_id)
             if search_content:
@@ -3060,8 +3210,16 @@ def process_user_messages(user_id):
 
         # --- 常规回复逻辑 (如果未启用联网、检测不需要联网、或联网失败) ---
         if reply is None: # 只有在尚未通过联网逻辑生成回复时才执行
-            logger.info(f"为用户 {user_id} 执行常规回复（无联网信息）。")
-            reply = get_deepseek_response(merged_message, user_id, store_context=True)
+            if use_knowledge_base:
+                logger.info(
+                    f"为用户 {user_id} 执行知识库增强回复，命中 {len(knowledge_chunks)} 个片段，"
+                    f"force={force_knowledge_answer}。"
+                )
+                final_prompt = build_knowledge_augmented_prompt(merged_message, knowledge_chunks)
+                reply = get_deepseek_response(final_prompt, user_id, store_context=True, context_user_message=merged_message)
+            else:
+                logger.info(f"为用户 {user_id} 执行常规回复（无联网信息）。")
+                reply = get_deepseek_response(merged_message, user_id, store_context=True)
 
         # --- 发送最终回复 ---
         if reply:
@@ -3088,7 +3246,70 @@ def process_user_messages(user_id):
             # 如果是正常用户消息出错，记录日志并重新抛出异常（保持原有的错误处理逻辑）
             logger.error(f"用户消息处理失败 (用户: {user_id}): {str(e)}")
             raise
-        
+def _visible_reply_char_count(text):
+    return len(re.sub(r'\s+', '', str(text or '')))
+
+def _trim_text_to_visible_chars(text, max_chars):
+    text = str(text or '').strip()
+    if max_chars <= 0:
+        return ''
+    kept = []
+    visible_count = 0
+    for char in text:
+        if char.isspace():
+            if kept and (not kept[-1].isspace()):
+                kept.append(char)
+            continue
+        if visible_count >= max_chars:
+            break
+        kept.append(char)
+        visible_count += 1
+    return ''.join(kept).strip()
+
+def apply_reply_length_safety_limit(parts):
+    """发送前兜底，防止模型偶发刷屏；优先保留完整短句。"""
+    if not _reply_length_limit_enabled():
+        return parts
+
+    max_segments, max_chars = _get_reply_length_limits()
+    control_tokens = {'[tickle]', '[tickle_self]', '[recall]'}
+    limited_parts = []
+    text_segments = 0
+    used_chars = 0
+
+    for part in parts:
+        if part in control_tokens:
+            if len(limited_parts) < max_segments:
+                limited_parts.append(part)
+            continue
+
+        if text_segments >= max_segments:
+            break
+
+        remaining_chars = max_chars - used_chars
+        if remaining_chars <= 0:
+            break
+
+        part_chars = _visible_reply_char_count(part)
+        if part_chars <= remaining_chars:
+            candidate = str(part).strip()
+        else:
+            candidate = _trim_text_to_visible_chars(part, remaining_chars)
+
+        if not candidate:
+            break
+
+        limited_parts.append(candidate)
+        text_segments += 1
+        used_chars += _visible_reply_char_count(candidate)
+
+    if len(limited_parts) != len(parts) or sum(_visible_reply_char_count(p) for p in limited_parts if p not in control_tokens) < sum(_visible_reply_char_count(p) for p in parts if p not in control_tokens):
+        logger.warning(
+            f"回复长度兜底已生效：原始分段 {len(parts)} 条，发送 {len(limited_parts)} 条，文本约 {used_chars}/{max_chars} 字"
+        )
+
+    return limited_parts
+
 def send_reply(user_id, sender_name, username, original_merged_message, reply, is_system_message=False):
     """发送回复消息，可能分段发送，并管理发送标志。
     
@@ -3127,6 +3348,7 @@ def send_reply(user_id, sender_name, username, original_merged_message, reply, i
         if REMOVE_PARENTHESES:
             reply = remove_parentheses_and_content(reply)
         parts = split_message_with_context(reply)
+        parts = apply_reply_length_safety_limit(parts)
 
         if not parts:
             logger.warning(f"回复消息在分割/清理后为空，无法发送给 {user_id}。")
@@ -3145,7 +3367,7 @@ def send_reply(user_id, sender_name, username, original_merged_message, reply, i
             else:
                 message_actions.append(('text', part))
         
-        if emoji_path:
+        if emoji_path and (not _reply_length_limit_enabled() or len(message_actions) < _get_reply_length_limits()[0]):
             # 随机选择插入位置（0到len(message_actions)之间，包含末尾）
             insert_pos = random.randint(0, len(message_actions))
             message_actions.insert(insert_pos, ('emoji', emoji_path))

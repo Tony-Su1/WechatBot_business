@@ -13,3 +13,7 @@ filelock
 requests
 beautifulsoup4
 lxml
+python-docx
+PyMuPDF
+pypdf
+openpyxl
