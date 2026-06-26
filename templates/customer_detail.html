@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户详情</title>
+    <style>
+        body {
+            margin: 0;
+            background: #f6f7f9;
+            color: #1f2933;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+        }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        h2 {
+            margin: 0 0 14px;
+            font-size: 17px;
+            color: #111827;
+        }
+        a.button, button {
+            display: inline-block;
+            border: 0;
+            border-radius: 4px;
+            padding: 9px 13px;
+            background: #2f8f46;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        a.button.secondary, button.secondary {
+            background: #3b82f6;
+        }
+        button.danger {
+            background: #ef4444;
+        }
+        .page {
+            padding: 22px 24px 32px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+            gap: 18px;
+        }
+        .panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #cfd6df;
+            border-radius: 4px;
+            padding: 9px 10px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 72px;
+            resize: vertical;
+        }
+        .wide {
+            grid-column: 1 / -1;
+        }
+        .checkline {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 24px;
+        }
+        .muted {
+            color: #64748b;
+            font-size: 13px;
+        }
+        .list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .item {
+            border: 1px solid #edf0f3;
+            border-radius: 6px;
+            padding: 10px 12px;
+            background: #fbfcfd;
+        }
+        .item.done {
+            opacity: 0.65;
+        }
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .badge.hot {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #0f172a;
+            color: #e5e7eb;
+            border-radius: 6px;
+            padding: 14px;
+            font-size: 13px;
+            line-height: 1.55;
+            max-height: 520px;
+            overflow: auto;
+        }
+        .followup-form {
+            display: grid;
+            grid-template-columns: 150px 140px minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 16px;
+        }
+        @media (max-width: 1000px) {
+            .grid, .form-grid, .followup-form {
+                grid-template-columns: 1fr;
+            }
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set c = detail.customer %}
+    <div class="topbar">
+        <div>
+            <h1>{{ c.display_name or c.wechat_nickname }}</h1>
+            <div class="muted">{{ c.wechat_nickname }} · 最近互动：{{ c.last_interaction_at or '-' }}</div>
+        </div>
+        <div>
+            <a class="button secondary" href="{{ url_for('customers_page') }}">返回客户列表</a>
+        </div>
+    </div>
+
+    <main class="page">
+        <div class="grid">
+            <section>
+                <div class="panel">
+                    <h2>客户资料</h2>
+                    <form method="post" action="{{ url_for('update_customer_detail', customer_id=c.id) }}">
+                        <div class="form-grid">
+                            <div>
+                                <label>姓名/备注</label>
+                                <input type="text" name="display_name" value="{{ c.display_name or '' }}">
+                            </div>
+                            <div>
+                                <label>销售阶段</label>
+                                <input type="text" name="sales_stage" value="{{ c.sales_stage or '' }}">
+                            </div>
+                            <div>
+                                <label>生日</label>
+                                <input type="text" name="birthday" value="{{ c.birthday or '' }}" placeholder="YYYY-MM-DD 或 MM-DD">
+                            </div>
+                            <div>
+                                <label>保费到期</label>
+                                <input type="text" name="premium_due_date" value="{{ c.premium_due_date or '' }}" placeholder="YYYY-MM-DD">
+                            </div>
+                            <div>
+                                <label>保单周年</label>
+                                <input type="text" name="policy_anniversary" value="{{ c.policy_anniversary or '' }}">
+                            </div>
+                            <div>
+                                <label>性格风格</label>
+                                <input type="text" name="personality_style" value="{{ c.personality_style or '' }}">
+                            </div>
+                            <div class="wide">
+                                <label>家庭情况</label>
+                                <textarea name="family_status">{{ c.family_status or '' }}</textarea>
+                            </div>
+                            <div class="wide">
+                                <label>兴趣偏好</label>
+                                <textarea name="preferences">{{ c.preferences or '' }}</textarea>
+                            </div>
+                            <div>
+                                <label>风险偏好</label>
+                                <input type="text" name="risk_preference" value="{{ c.risk_preference or '' }}">
+                            </div>
+                            <div>
+                                <label>沟通禁忌</label>
+                                <input type="text" name="communication_taboo" value="{{ c.communication_taboo or '' }}">
+                            </div>
+                            <div class="wide">
+                                <label>当前关注点</label>
+                                <textarea name="current_focus">{{ c.current_focus or '' }}</textarea>
+                            </div>
+                            <div class="wide">
+                                <label>下一步动作</label>
+                                <textarea name="next_action">{{ c.next_action or '' }}</textarea>
+                            </div>
+                            <div class="wide">
+                                <label>应该怎么说</label>
+                                <textarea name="reply_strategy">{{ c.reply_strategy or '' }}</textarea>
+                            </div>
+                            <div class="wide">
+                                <label>避免怎么说</label>
+                                <textarea name="avoid_strategy">{{ c.avoid_strategy or '' }}</textarea>
+                            </div>
+                            <div class="checkline">
+                                <input type="checkbox" id="needs_handoff" name="needs_handoff" {% if c.needs_handoff %}checked{% endif %}>
+                                <label for="needs_handoff" style="margin:0;">需要人工接管</label>
+                            </div>
+                            <div>
+                                <label>接管原因</label>
+                                <input type="text" name="handoff_reason" value="{{ c.handoff_reason or '' }}">
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button type="submit">保存资料</button>
+                            {% if c.needs_handoff %}
+                                <span class="badge hot">待接管</span>
+                            {% else %}
+                                <span class="badge">自动维护中</span>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel">
+                    <h2>跟进任务</h2>
+                    <form class="followup-form" method="post" action="{{ url_for('add_customer_followup', customer_id=c.id) }}">
+                        <div>
+                            <label>时间</label>
+                            <input type="text" name="due_at" placeholder="YYYY-MM-DD">
+                        </div>
+                        <div>
+                            <label>类型</label>
+                            <input type="text" name="task_type" placeholder="跟进/生日/保费">
+                        </div>
+                        <div>
+                            <label>内容</label>
+                            <input type="text" name="content" placeholder="下一次需要做什么">
+                        </div>
+                        <button type="submit">添加</button>
+                    </form>
+                    <div class="list">
+                        {% for f in detail.followups %}
+                        <div class="item {% if f.status == 'done' %}done{% endif %}">
+                            <div class="item-header">
+                                <div>
+                                    <span class="badge">{{ f.status }}</span>
+                                    <strong>{{ f.task_type or '跟进' }}</strong>
+                                    <span class="muted">{{ f.due_at or '未定时间' }}</span>
+                                </div>
+                                {% if f.status != 'done' %}
+                                <form method="post" action="{{ url_for('mark_followup_done', followup_id=f.id) }}">
+                                    <button class="secondary" type="submit">完成</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            <div>{{ f.content or '' }}</div>
+                        </div>
+                        {% else %}
+                        <div class="muted">暂无跟进任务。</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>最近互动</h2>
+                    <div class="list">
+                        {% for item in detail.interactions %}
+                        <div class="item">
+                            <div class="item-header">
+                                <strong>{{ item.direction }}</strong>
+                                <span class="muted">{{ item.created_at }}</span>
+                            </div>
+                            <div>{{ item.summary or item.raw_excerpt or '' }}</div>
+                        </div>
+                        {% else %}
+                        <div class="muted">暂无互动摘要。</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+
+            <aside>
+                <div class="panel">
+                    <h2>给模型看的客户摘要</h2>
+                    <pre>{{ profile_preview }}</pre>
+                </div>
+                <div class="panel">
+                    <h2>关键事件</h2>
+                    <div class="list">
+                        {% for event in detail.events %}
+                        <div class="item">
+                            <div class="item-header">
+                                <strong>{{ event.event_type }}</strong>
+                                <span class="muted">{{ event.event_date or '-' }}</span>
+                            </div>
+                            <div>{{ event.note or '' }}</div>
+                        </div>
+                        {% else %}
+                        <div class="muted">暂无关键事件。</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+</body>
+</html>

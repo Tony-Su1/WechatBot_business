@@ -4859,6 +4859,33 @@ def recurring_reminder_checker():
             time.sleep(60) # 出错后等待时间稍长
 
 # --- 检测是否需要联网搜索的函数 ---
+def should_skip_online_detection_fast(message: str) -> bool:
+    """
+    对明显不需要联网的短消息做本地快速判断，避免每条私聊都先调用一次模型。
+    返回 True 表示可以跳过 AI 联网检测。
+    """
+    text = str(message or "")
+    stripped = re.sub(r"^\[[^\]]+\]\s*", "", text).strip()
+    if not stripped:
+        return True
+
+    lowered = stripped.lower()
+    if re.search(r"https?://|www\.", lowered):
+        return False
+
+    strong_online_keywords = [
+        "天气", "新闻", "热搜", "股票", "股价", "基金", "汇率", "航班",
+        "官网", "网页", "网站", "链接", "网址", "搜索", "查一下", "帮我查",
+        "联网", "实时", "最新消息", "最新新闻", "最近新闻",
+        "weather", "news", "stock", "exchange rate", "official site",
+        "website", "search", "lookup", "latest news",
+    ]
+    if any(keyword in lowered for keyword in strong_online_keywords):
+        return False
+
+    return len(stripped) <= 120
+
+
 def needs_online_search(message: str, user_id: str) -> Optional[str]:
     """
     使用主 AI 判断用户消息是否需要联网搜索，并返回需要搜索的内容。
@@ -4871,6 +4898,10 @@ def needs_online_search(message: str, user_id: str) -> Optional[str]:
         Optional[str]: 如果需要联网搜索，返回需要搜索的内容；否则返回 None。
     """
     if not ENABLE_ONLINE_API:  # 如果全局禁用，直接返回 None
+        return None
+
+    if should_skip_online_detection_fast(message):
+        logger.info(f"快速判断用户 {user_id} 的消息不需要联网。")
         return None
 
     # 构建用于检测的提示词

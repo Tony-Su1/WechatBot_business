@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户 CRM</title>
+    <style>
+        body {
+            margin: 0;
+            background: #f6f7f9;
+            color: #1f2933;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+        }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .nav-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        a.button, button {
+            display: inline-block;
+            border: 0;
+            border-radius: 4px;
+            padding: 9px 13px;
+            background: #2f8f46;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        a.button.secondary {
+            background: #3b82f6;
+        }
+        .page {
+            padding: 22px 24px 32px;
+        }
+        .filters {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 8px 11px;
+            border: 1px solid #d6dae1;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .tab.active {
+            border-color: #2f8f46;
+            background: #e8f5e9;
+            color: #1f6b36;
+            font-weight: 600;
+        }
+        .search {
+            display: flex;
+            gap: 8px;
+            min-width: 320px;
+        }
+        .search input {
+            width: 100%;
+            padding: 9px 10px;
+            border: 1px solid #cfd6df;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+        }
+        th, td {
+            padding: 11px 12px;
+            border-bottom: 1px solid #edf0f3;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+        th {
+            background: #f9fafb;
+            color: #475569;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        tr:hover td {
+            background: #fbfdfb;
+        }
+        .name {
+            font-weight: 600;
+            color: #111827;
+        }
+        .muted {
+            color: #64748b;
+            font-size: 13px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .badge.hot {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .empty {
+            background: #fff;
+            border: 1px dashed #cfd6df;
+            padding: 28px;
+            color: #64748b;
+            text-align: center;
+        }
+        @media (max-width: 900px) {
+            .topbar, .filters {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .search {
+                width: 100%;
+                min-width: 0;
+            }
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>客户 CRM</h1>
+        <div class="nav-actions">
+            <a class="button secondary" href="{{ url_for('index', skipped='true') }}">返回配置</a>
+        </div>
+    </div>
+
+    <main class="page">
+        <div class="filters">
+            <div class="tabs">
+                <a class="tab {% if view == 'all' %}active{% endif %}" href="{{ url_for('customers_page', view='all', q=q) }}">全部 {{ stats['all'] }}</a>
+                <a class="tab {% if view == 'handoff' %}active{% endif %}" href="{{ url_for('customers_page', view='handoff', q=q) }}">待接管 {{ stats['handoff'] }}</a>
+                <a class="tab {% if view == 'premium_due' %}active{% endif %}" href="{{ url_for('customers_page', view='premium_due', q=q) }}">30天保费到期 {{ stats['premium_due'] }}</a>
+                <a class="tab {% if view == 'birthday' %}active{% endif %}" href="{{ url_for('customers_page', view='birthday', q=q) }}">30天生日 {{ stats['birthday'] }}</a>
+                <a class="tab {% if view == 'inactive' %}active{% endif %}" href="{{ url_for('customers_page', view='inactive', q=q) }}">30天未互动 {{ stats['inactive'] }}</a>
+            </div>
+            <form class="search" method="get" action="{{ url_for('customers_page') }}">
+                <input type="hidden" name="view" value="{{ view }}">
+                <input type="text" name="q" value="{{ q }}" placeholder="搜索昵称、关注点、下一步动作">
+                <button type="submit">搜索</button>
+            </form>
+        </div>
+
+        {% if customers %}
+        <table>
+            <thead>
+                <tr>
+                    <th>客户</th>
+                    <th>阶段</th>
+                    <th>关键日期</th>
+                    <th>当前关注</th>
+                    <th>下一步</th>
+                    <th>接管</th>
+                    <th>最近互动</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td>
+                        <div class="name">{{ c.display_name or c.wechat_nickname }}</div>
+                        <div class="muted">{{ c.wechat_nickname }}</div>
+                    </td>
+                    <td><span class="badge">{{ c.sales_stage or '未设置' }}</span></td>
+                    <td>
+                        <div>生日：{{ c.birthday or '-' }}</div>
+                        <div>保费：{{ c.premium_due_date or '-' }}</div>
+                        <div>周年：{{ c.policy_anniversary or '-' }}</div>
+                    </td>
+                    <td>{{ c.current_focus or '-' }}</td>
+                    <td>{{ c.next_action or '-' }}</td>
+                    <td>
+                        {% if c.needs_handoff %}
+                            <span class="badge hot">需要</span>
+                            <div class="muted">{{ c.handoff_reason or '' }}</div>
+                        {% else %}
+                            <span class="muted">否</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ c.last_interaction_at or c.updated_at or '-' }}</td>
+                    <td><a class="button" href="{{ url_for('customer_detail_page', customer_id=c.id) }}">详情</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">暂无客户数据。机器人与私聊客户完成一次对话后，会自动创建客户记录。</div>
+        {% endif %}
+    </main>
+</body>
+</html>

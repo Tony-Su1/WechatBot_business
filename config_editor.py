@@ -37,11 +37,12 @@ import logging
 from queue import Queue, Empty
 import time
 import json
+import sqlite3
 from werkzeug.utils import secure_filename
 import uuid
 import base64
 import mimetypes
-from datetime import datetime
+from datetime import datetime, timedelta
 import zipfile
 
 app = Flask(__name__)
@@ -1004,6 +1005,339 @@ def safe_filename(filename):
     # 防止路径穿越
     filename = filename.replace('../', '_').replace('/', '_')
     return filename
+
+# ===== 客户 CRM 面板 =====
+def get_customer_db_path_from_config():
+    config = parse_config()
+    db_path = str(config.get('CUSTOMER_DB_PATH', 'data/customer_assistant.db') or 'data/customer_assistant.db')
+    if not os.path.isabs(db_path):
+        db_path = os.path.join(BASE_DIR, db_path)
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    return db_path
+
+def customer_db_connect():
+    conn = sqlite3.connect(get_customer_db_path_from_config(), timeout=15)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+def init_customer_db_for_editor():
+    with customer_db_connect() as conn:
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wechat_nickname TEXT NOT NULL UNIQUE,
+    display_name TEXT,
+    birthday TEXT,
+    premium_due_date TEXT,
+    policy_anniversary TEXT,
+    family_status TEXT,
+    preferences TEXT,
+    personality_style TEXT,
+    risk_preference TEXT,
+    communication_taboo TEXT,
+    sales_stage TEXT DEFAULT '售前-旧客维护',
+    current_focus TEXT,
+    next_action TEXT,
+    reply_strategy TEXT,
+    avoid_strategy TEXT,
+    needs_handoff INTEGER DEFAULT 0,
+    handoff_reason TEXT,
+    profile_markdown TEXT,
+    last_interaction_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS customer_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    event_date TEXT,
+    note TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS interactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER NOT NULL,
+    direction TEXT NOT NULL,
+    summary TEXT,
+    raw_excerpt TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS followups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER NOT NULL,
+    due_at TEXT,
+    task_type TEXT,
+    content TEXT,
+    status TEXT DEFAULT 'open',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_customers_wechat_nickname ON customers(wechat_nickname);
+CREATE INDEX IF NOT EXISTS idx_customer_events_customer_date ON customer_events(customer_id, event_date);
+CREATE INDEX IF NOT EXISTS idx_interactions_customer_created ON interactions(customer_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_followups_status_due ON followups(status, due_at);
+""")
+
+def row_to_dict(row):
+    return dict(row) if row is not None else None
+
+def normalize_date_for_compare(value):
+    if not value:
+        return None
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(text[:len(fmt)], fmt).date()
+        except ValueError:
+            pass
+    if re.match(r"^\d{2}-\d{2}$", text):
+        try:
+            return datetime.strptime(f"{datetime.now().year}-{text}", "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    return None
+
+def is_date_within_days(value, days):
+    target = normalize_date_for_compare(value)
+    if not target:
+        return False
+    today = datetime.now().date()
+    if target < today and len(str(value).strip()) == 5:
+        try:
+            target = target.replace(year=today.year + 1)
+        except ValueError:
+            return False
+    return today <= target <= today + timedelta(days=days)
+
+def customer_matches_view(customer, view):
+    if view == 'handoff':
+        return bool(customer.get('needs_handoff'))
+    if view == 'premium_due':
+        return is_date_within_days(customer.get('premium_due_date'), 30)
+    if view == 'birthday':
+        return is_date_within_days(customer.get('birthday'), 30)
+    if view == 'inactive':
+        last_dt = normalize_date_for_compare(customer.get('last_interaction_at'))
+        if not last_dt:
+            return True
+        return last_dt <= datetime.now().date() - timedelta(days=30)
+    return True
+
+def list_customers_for_crm(view='all', q=''):
+    init_customer_db_for_editor()
+    q = (q or '').strip()
+    with customer_db_connect() as conn:
+        rows = conn.execute("""
+            SELECT
+                id, wechat_nickname, display_name, birthday, premium_due_date,
+                policy_anniversary, sales_stage, current_focus, next_action,
+                needs_handoff, handoff_reason, last_interaction_at, updated_at
+            FROM customers
+            ORDER BY
+                CASE WHEN needs_handoff THEN 0 ELSE 1 END,
+                COALESCE(last_interaction_at, updated_at, created_at) DESC
+        """).fetchall()
+    customers = [dict(row) for row in rows]
+    if q:
+        q_lower = q.lower()
+        customers = [
+            item for item in customers
+            if q_lower in str(item.get('wechat_nickname') or '').lower()
+            or q_lower in str(item.get('display_name') or '').lower()
+            or q_lower in str(item.get('current_focus') or '').lower()
+            or q_lower in str(item.get('next_action') or '').lower()
+        ]
+    return [item for item in customers if customer_matches_view(item, view)]
+
+def get_customer_detail(customer_id):
+    init_customer_db_for_editor()
+    with customer_db_connect() as conn:
+        customer = row_to_dict(conn.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone())
+        if not customer:
+            return None
+        events = [dict(row) for row in conn.execute(
+            "SELECT * FROM customer_events WHERE customer_id = ? ORDER BY COALESCE(event_date, ''), id DESC",
+            (customer_id,)
+        ).fetchall()]
+        interactions = [dict(row) for row in conn.execute(
+            "SELECT * FROM interactions WHERE customer_id = ? ORDER BY created_at DESC, id DESC LIMIT 30",
+            (customer_id,)
+        ).fetchall()]
+        followups = [dict(row) for row in conn.execute(
+            "SELECT * FROM followups WHERE customer_id = ? ORDER BY CASE WHEN status='done' THEN 1 ELSE 0 END, COALESCE(due_at, ''), id DESC",
+            (customer_id,)
+        ).fetchall()]
+    return {
+        'customer': customer,
+        'events': events,
+        'interactions': interactions,
+        'followups': followups,
+    }
+
+def build_customer_profile_preview(customer, events=None, followups=None, interactions=None):
+    events = events or []
+    followups = [item for item in (followups or []) if item.get('status') != 'done']
+    interactions = interactions or []
+    lines = [
+        '## 客户经营档案',
+        '',
+        f"档案对象：{customer.get('wechat_nickname') or ''}",
+        f"档案更新时间：{customer.get('updated_at') or ''}",
+        '',
+        f"客户阶段：{customer.get('sales_stage') or '售前-旧客维护'}",
+        '',
+        '关键日期：',
+        f"- 生日：{customer.get('birthday') or ''}",
+        f"- 保费到期：{customer.get('premium_due_date') or ''}",
+        f"- 保单周年：{customer.get('policy_anniversary') or ''}",
+    ]
+    for event in events:
+        note = f"（{event.get('note')}）" if event.get('note') else ''
+        lines.append(f"- {event.get('event_type') or '其他'}：{event.get('event_date') or ''}{note}")
+    lines.extend([
+        '',
+        '客户画像：',
+        f"- 昵称/姓名：{customer.get('display_name') or ''}",
+        f"- 家庭情况：{customer.get('family_status') or ''}",
+        f"- 兴趣偏好：{customer.get('preferences') or ''}",
+        f"- 性格风格：{customer.get('personality_style') or ''}",
+        f"- 风险偏好：{customer.get('risk_preference') or ''}",
+        f"- 沟通禁忌：{customer.get('communication_taboo') or ''}",
+        '',
+        '当前进度：',
+        f"- 最近互动时间：{customer.get('last_interaction_at') or ''}",
+        f"- 当前关注点：{customer.get('current_focus') or ''}",
+        f"- 下一步动作：{customer.get('next_action') or ''}",
+        '',
+        '回复策略：',
+        f"- 应该怎么说：{customer.get('reply_strategy') or ''}",
+        f"- 避免怎么说：{customer.get('avoid_strategy') or ''}",
+        '',
+        '人工接管：',
+        f"- 是否需要人工接管：{'是' if customer.get('needs_handoff') else '否'}",
+        f"- 原因：{customer.get('handoff_reason') or ''}",
+    ])
+    if followups:
+        lines.extend(['', '未完成跟进：'])
+        for item in followups[:10]:
+            lines.append(f"- {item.get('due_at') or '未定时间'} | {item.get('task_type') or '跟进'}：{item.get('content') or ''}")
+    if interactions:
+        lines.extend(['', '最近互动摘要：'])
+        for item in interactions[:5]:
+            lines.append(f"- {item.get('created_at') or ''}：{item.get('summary') or item.get('raw_excerpt') or ''}")
+    return '\n'.join(lines).strip() + '\n'
+
+def sync_customer_memory_cache(customer_id):
+    detail = get_customer_detail(customer_id)
+    if not detail:
+        return
+    config = parse_config()
+    memory_dir = os.path.join(BASE_DIR, config.get('CUSTOMER_MEMORY_DIR', 'CustomerMemory'))
+    os.makedirs(memory_dir, exist_ok=True)
+    nickname = safe_filename(detail['customer'].get('wechat_nickname') or f'customer_{customer_id}')
+    path = os.path.join(memory_dir, f'{nickname}.md')
+    content = build_customer_profile_preview(
+        detail['customer'],
+        detail['events'],
+        detail['followups'],
+        detail['interactions']
+    )
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+@app.route('/customers')
+@login_required
+def customers_page():
+    view = request.args.get('view', 'all')
+    q = request.args.get('q', '')
+    customers = list_customers_for_crm(view=view, q=q)
+    all_customers = list_customers_for_crm(view='all', q='')
+    stats = {
+        'all': len(all_customers),
+        'handoff': len([c for c in all_customers if customer_matches_view(c, 'handoff')]),
+        'premium_due': len([c for c in all_customers if customer_matches_view(c, 'premium_due')]),
+        'birthday': len([c for c in all_customers if customer_matches_view(c, 'birthday')]),
+        'inactive': len([c for c in all_customers if customer_matches_view(c, 'inactive')]),
+    }
+    return render_template('customer_crm.html', customers=customers, view=view, q=q, stats=stats)
+
+@app.route('/customers/<int:customer_id>')
+@login_required
+def customer_detail_page(customer_id):
+    detail = get_customer_detail(customer_id)
+    if not detail:
+        return "客户不存在", 404
+    profile_preview = build_customer_profile_preview(
+        detail['customer'],
+        detail['events'],
+        detail['followups'],
+        detail['interactions']
+    )
+    return render_template('customer_detail.html', detail=detail, profile_preview=profile_preview)
+
+@app.route('/customers/<int:customer_id>/update', methods=['POST'])
+@login_required
+def update_customer_detail(customer_id):
+    editable_fields = [
+        'display_name', 'birthday', 'premium_due_date', 'policy_anniversary',
+        'family_status', 'preferences', 'personality_style', 'risk_preference',
+        'communication_taboo', 'sales_stage', 'current_focus', 'next_action',
+        'reply_strategy', 'avoid_strategy', 'handoff_reason'
+    ]
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    values = {field: request.form.get(field, '').strip() for field in editable_fields}
+    needs_handoff = 1 if request.form.get('needs_handoff') == 'on' else 0
+    set_sql = ', '.join([f"{field} = ?" for field in editable_fields] + ['needs_handoff = ?', 'updated_at = ?'])
+    params = [values[field] for field in editable_fields] + [needs_handoff, now_str, customer_id]
+    init_customer_db_for_editor()
+    with customer_db_connect() as conn:
+        conn.execute(f"UPDATE customers SET {set_sql} WHERE id = ?", params)
+    sync_customer_memory_cache(customer_id)
+    return redirect(url_for('customer_detail_page', customer_id=customer_id))
+
+@app.route('/customers/<int:customer_id>/followups/add', methods=['POST'])
+@login_required
+def add_customer_followup(customer_id):
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    due_at = request.form.get('due_at', '').strip()
+    task_type = request.form.get('task_type', '').strip() or '跟进'
+    content = request.form.get('content', '').strip()
+    if content:
+        init_customer_db_for_editor()
+        with customer_db_connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO followups (customer_id, due_at, task_type, content, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'open', ?, ?)
+                """,
+                (customer_id, due_at, task_type, content, now_str, now_str)
+            )
+        sync_customer_memory_cache(customer_id)
+    return redirect(url_for('customer_detail_page', customer_id=customer_id))
+
+@app.route('/customers/followups/<int:followup_id>/done', methods=['POST'])
+@login_required
+def mark_followup_done(followup_id):
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    init_customer_db_for_editor()
+    with customer_db_connect() as conn:
+        row = conn.execute("SELECT customer_id FROM followups WHERE id = ?", (followup_id,)).fetchone()
+        if not row:
+            return "跟进任务不存在", 404
+        customer_id = row['customer_id']
+        conn.execute(
+            "UPDATE followups SET status = 'done', updated_at = ? WHERE id = ?",
+            (now_str, followup_id)
+        )
+    sync_customer_memory_cache(customer_id)
+    return redirect(url_for('customer_detail_page', customer_id=customer_id))
 
 @app.route('/edit_prompt/<filename>', methods=['GET', 'POST'])
 @login_required
