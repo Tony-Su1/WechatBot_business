@@ -3564,7 +3564,7 @@ document.getElementById('oneKeyDiagnosticButton').addEventListener('click', asyn
                         </div>
                         <div class="switch-item">
                             <label>普通消息也先尝试检索知识库</label>
-                            <div class="switch"><label class="switch-label"><input type="checkbox" name="ENABLE_KNOWLEDGE_AUTO_SEARCH" {% if config.ENABLE_KNOWLEDGE_AUTO_SEARCH | default(true) %}checked{% endif %}><span class="slider round"></span></label></div>
+                            <div class="switch"><label class="switch-label"><input type="checkbox" name="KNOWLEDGE_AUTO_SEARCH" {% if config.KNOWLEDGE_AUTO_SEARCH | default(true) %}checked{% endif %}><span class="slider round"></span></label></div>
                         </div>
                         <label>知识库数据库位置:</label>
                         <input type="text" name="KNOWLEDGE_DB_PATH" value="{{ config.KNOWLEDGE_DB_PATH | default('data/knowledge_base.db') }}">

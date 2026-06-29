@@ -362,7 +362,7 @@ def submit_config():
             'ENABLE_EMOJI_SENDING', 'ENABLE_AUTO_MESSAGE', 'ENABLE_MEMORY',
             'UPLOAD_MEMORY_TO_AI', 'ENABLE_LOGIN_PASSWORD', 'ENABLE_REMINDERS',
             'ALLOW_REMINDERS_IN_QUIET_TIME', 'USE_VOICE_CALL_FOR_REMINDERS',
-            'ENABLE_ONLINE_API', 'SEPARATE_ROW_SYMBOLS', 'ENABLE_REPLY_LENGTH_LIMIT', 'ENABLE_KNOWLEDGE_BASE', 'ENABLE_KNOWLEDGE_AUTO_SEARCH', 'ENABLE_SCHEDULED_RESTART',
+            'ENABLE_ONLINE_API', 'SEPARATE_ROW_SYMBOLS', 'ENABLE_REPLY_LENGTH_LIMIT', 'ENABLE_KNOWLEDGE_BASE', 'KNOWLEDGE_AUTO_SEARCH', 'ENABLE_SCHEDULED_RESTART',
             'ENABLE_GROUP_AT_REPLY', 'ENABLE_GROUP_KEYWORD_REPLY','GROUP_KEYWORD_REPLY_IGNORE_PROBABILITY', 'REMOVE_PARENTHESES',
             'ENABLE_ASSISTANT_MODEL', 'USE_ASSISTANT_FOR_MEMORY_SUMMARY',
             'IGNORE_GROUP_CHAT_FOR_AUTO_MESSAGE', 'ENABLE_SENSITIVE_CONTENT_CLEARING', 'SAVE_MEMORY_TO_SEPARATE_FILE',
@@ -877,6 +877,7 @@ def create_knowledge_document(file_storage, form):
     file_storage.save(stored_path)
 
     text = kb.extract_text_from_file(stored_path, ext)
+    language_stats = kb.analyze_text_language(text)
     chunks = kb.chunk_text(text)
     if not chunks:
         raise RuntimeError("没有从文件中读取到可用文本；扫描版 PDF 需要后续接入 OCR。")
@@ -895,12 +896,23 @@ def create_knowledge_document(file_storage, form):
             INSERT INTO kb_documents (
                 collection, title, source_filename, stored_filename, source_type,
                 trusted_level, product_name, version, effective_date,
-                enabled, chunk_count, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                enabled, chunk_count, dominant_language, language_summary, language_stats,
+                content_char_count, english_word_count, simplified_char_count,
+                traditional_char_count, translated_term_count, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             collection, title, original_name, stored_name, ext.lstrip('.'),
             trusted_level, product_name, version, effective_date,
-            len(chunks), now_str, now_str
+            len(chunks),
+            language_stats.get('dominant_language', ''),
+            language_stats.get('language_summary', ''),
+            json.dumps(language_stats, ensure_ascii=False),
+            language_stats.get('content_char_count', 0),
+            language_stats.get('english_word_count', 0),
+            language_stats.get('simplified_char_count', 0),
+            language_stats.get('traditional_char_count', 0),
+            language_stats.get('translated_term_count', 0),
+            now_str, now_str
         ))
         document_id = cursor.lastrowid
         for index, chunk in enumerate(chunks):

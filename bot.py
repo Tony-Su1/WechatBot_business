@@ -240,7 +240,10 @@ def _knowledge_base_enabled():
 def _knowledge_auto_search_enabled():
     return bool(get_dynamic_config(
         'KNOWLEDGE_AUTO_SEARCH',
-        globals().get('KNOWLEDGE_AUTO_SEARCH', True)
+        get_dynamic_config(
+            'ENABLE_KNOWLEDGE_AUTO_SEARCH',
+            globals().get('KNOWLEDGE_AUTO_SEARCH', True)
+        )
     ))
 
 def _get_knowledge_db_path():
@@ -266,13 +269,26 @@ def should_use_knowledge_base(message: str) -> bool:
     if not _knowledge_base_enabled():
         return False
     text = str(message or '')
-    keywords = [
+    insurance_keywords = [
         '保险', '保单', '险种', '投保', '承保', '保费', '保额', '免赔', '等待期',
         '犹豫期', '责任免除', '免责', '理赔', '赔付', '现金价值', '退保', '续保',
         '重疾', '轻症', '中症', '医疗险', '寿险', '意外险', '年金', '分红',
         '万能账户', '被保险人', '受益人', '健康告知', '核保', '条款', '保险责任'
     ]
-    return any(keyword in text for keyword in keywords)
+    if any(keyword in text for keyword in insurance_keywords):
+        return True
+
+    fact_subjects = [
+        '年报', '报告', '资料', '文档', '公司', '集团', '友邦', 'AIA', 'aia',
+        '捐款', '捐赠', '公益', '慈善', '资本覆盖率', '偿付能力', '新业务价值',
+        '利润', '营运利润', '税后', '内含价值', '股息', '保费收入'
+    ]
+    fact_intents = [
+        '多少', '几', '什么', '哪', '是否', '有没有', '去年', '今年', '前年度',
+        '202', '201', '金额', '比例', '数据', '数字', '数值', '率', '是多少',
+        '列出', '说明', '来自', '根据'
+    ]
+    return any(term in text for term in fact_subjects) and any(term in text for term in fact_intents)
 
 def search_knowledge_base(query: str, top_k: Optional[int] = None, min_score: Optional[int] = None):
     if not _knowledge_base_enabled():

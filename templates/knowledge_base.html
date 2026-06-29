@@ -293,6 +293,7 @@
                         <th>分类</th>
                         <th>产品</th>
                         <th>版本</th>
+                        <th>语言解读</th>
                         <th>片段</th>
                         <th>索引项</th>
                         <th>状态</th>
@@ -310,6 +311,12 @@
                         <td>{{ doc.collection }}</td>
                         <td>{{ doc.product_name or '-' }}</td>
                         <td>{{ doc.version or '-' }}</td>
+                        <td>
+                            <span class="badge">{{ doc.dominant_language or '未统计' }}</span>
+                            {% if doc.language_summary %}
+                                <div class="muted">{{ doc.language_summary }}</div>
+                            {% endif %}
+                        </td>
                         <td>{{ doc.chunk_count }}</td>
                         <td>{{ doc.index_terms or 0 }}</td>
                         <td>
